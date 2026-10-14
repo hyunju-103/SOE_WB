@@ -283,10 +283,21 @@ served via `Home.py`, which already embeds the HTML UI with uploads enabled.
 
 ## Profitability KPI: Cost recovery
 
-The **Cost recovery (x)** selection appears inside the existing **KPI Dashboard → Profitability → Ratio** control for data supplying all four raw fields. It is available in trend, comparison, and scorecard views, with the existing chart styles and illustrative thresholds.
+The **Cost recovery (x)** selection is **always displayed** inside the existing **KPI Dashboard → Profitability → Ratio** control, regardless of whether data for the metric exist. It is available in trend, comparison, and scorecard views, with the existing chart styles and illustrative thresholds.
 
 `Cost recovery = (Revenues - Government Grants) / (Cost of Goods Sold + Other Operating Expenses)`
 
-Excel/CSV uploads may use these column labels or schema keys `cost_of_goods_sold` / `other_operating_expenses`. There is no `Operating Expense` fallback: it is not necessarily equal to the named sum. Invalid/non-positive cost totals and missing components produce `n/a`; the KPI will not appear in the dropdown if no row contains the necessary inputs. **This computation assumes Government Grants were included in the supplied Revenues**, so verify statement classification to prevent double subtraction. Tariff/PSO already represented by Government Grants is not deducted separately, and investment grants/equity support must not be combined with the income-statement grants value. Illustrative traffic-light cutoffs: alert <1.00x, good >=1.10x.
+Excel/CSV uploads may use these column labels or schema keys `cost_of_goods_sold` / `other_operating_expenses`. There is no `Operating Expense` fallback: it is not necessarily equal to the named sum. Invalid/non-positive cost totals and missing components produce `n/a`; the KPI remains selectable but displays "Data unavailable" when no row contains the necessary inputs. **This computation assumes Government Grants were included in the supplied Revenues**, so verify statement classification to prevent double subtraction. Tariff/PSO already represented by Government Grants is not deducted separately, and investment grants/equity support must not be combined with the income-statement grants value. Illustrative traffic-light cutoffs: alert <1.00x, good >=1.10x.
 
-The built-in demo has no separate COGS and Other Operating Expenses components and is intentionally unchanged: its profitability dropdown will therefore not offer Cost recovery. An uploaded Senelec workbook with the four reported fields automatically offers it.
+The built-in demo has no separate COGS and Other Operating Expenses components and is intentionally unchanged: its profitability dropdown nevertheless offers Cost recovery and shows "Data unavailable" until suitable data are uploaded. An uploaded Senelec workbook with all required fields automatically plots its actual values.
+
+## Persistent navigation and KPI catalog
+
+All nine top-level tabs, all configured KPI ratio choices (excluding intentionally removed EBITDA margin), and the new support/evidence panels remain visible with the built-in demo. Missing values display a `Data unavailable` message and, where appropriate, identify absent source fields. Uploading a compatible workbook populates existing controls; it does not reveal new navigation items. Missing observations are not silently treated as zero or counted as risk alerts.
+
+
+### Download any chart as PNG
+
+Move the pointer over any chart in the interactive `Home.py` dashboard, then click the small download icon in its upper-right corner. This saves **only that chart** as a high-resolution PNG (up to 3× the SVG resolution), rather than taking a screenshot of the entire page. The export works for all rendered SVG charts including KPI trends and comparisons, Altman Z-EM, Expected Fiscal Cost, Shock Scenarios and uploaded-workbook government-support charts. It uses no external image-export service. When a chart has no data, there is no image to download; its placeholder remains visible. Keyboard users can Tab to the icon. All page menus and KPI choices remain available without an upload.
+
+The optional `classic.py` multipage Streamlit interface uses Plotly's image-download icon on chart hover as well.

@@ -26,7 +26,12 @@ def main():
                            ("other_operating_expenses", "Other Operating Expenses")]:
         assert schema.match_column(header)[0] == mapped, (header, schema.match_column(header))
     base = data_loader.demo_portfolio()
+    # The metric cannot be computed from the demo, but remains in the UI
+    # selector independently of this calculation-availability list.
     assert "cost_recovery" not in calculations.available_kpis(base, "profitability")
+    ui = (ROOT / "templates" / "app.js").read_text(encoding="utf8")
+    assert 'catKpis(cat) { return CFG.KPI_CATEGORIES[cat].slice(); }' in ui
+    assert "Data unavailable — ${SPEC[k].label} requires" in ui
 
     # Invented examples, including missing pieces, a zero denominator and negative grants.
     df = base.iloc[:5].copy()

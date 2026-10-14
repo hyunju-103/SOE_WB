@@ -879,6 +879,12 @@
     return fmt(v, Math.abs(v) >= 100 ? 0 : Math.abs(v) >= 10 ? 1 : 2) + "×";
   }
   const kpiTitle = (k) => `${SPEC[k].label} (${SPEC[k].unit === "%" ? "%" : "x"})`;
+  function missingKpiMessage(k) {
+    const missing = (SPEC[k].requires || []).filter((field) => !S.rows.some((r) => ok(r[field])));
+    return missing.length
+      ? `Data unavailable — ${SPEC[k].label} requires ${missing.join(", ")}. These inputs are not reported in the current dataset.`
+      : `Data unavailable — ${SPEC[k].label} has no valid observations for the selected SOE, years or denominator.`;
+  }
   function kpiTick(key) { return SPEC[key].unit === "%" ? (t, s) => fmt(t * 100, !s || s * 100 >= 1 ? 0 : s * 100 >= 0.1 ? 1 : 2) + "%" : (t, s) => tickLab(t, s) + "×"; }
   function cutText(key) {
     const sp = SPEC[key], f = (v) => (sp.unit === "%" ? fmt(v * 100, 0) + "%" : fmt(v, 1) + "×");
@@ -915,7 +921,7 @@
   function scorecard(rowsK, avail, keys, expanded) {
     const latest = latestOf(rowsK);
     const scored = latest.map((r) => {
-      const stt = Object.fromEntries(avail.map((k) => [k, kpiStatus(r, k)]));
+      const stt = Object.fromEntries([...new Set([...avail, ...keys])].map((k) => [k, kpiStatus(r, k)]));
       const prev = rowsK.filter((x) => x.Entity === r.Entity && x.Year < r.Year).sort((a, b) => b.Year - a.Year)[0];
       return { r, stt, prev, na: Object.values(stt).filter((s) => s.st === "alert").length, nw: Object.values(stt).filter((s) => s.st === "watch").length };
     }).sort((a, b) => b.na - a.na || a.r.Z_EM - b.r.Z_EM);
@@ -955,12 +961,17 @@
       H.out = el("div");
       H.strip = statStrip();
       root.replaceChildren(head, H.strip, el("div", { class: "card", style: "margin-bottom:16px" }, tools), H.out, foot);
-      if (!avail.length) { H.out.replaceChildren(el("div", { class: "alert-box warn" }, "None of the KPI input fields were found in the data.")); return; }
+      // Keep all views selectable even if none of their KPI source columns exists.
+      // Computable KPIs (this.avail) are still used solely for portfolio statistics.
       if (st.view === "trend") this.buildTrend();
       else if (st.view === "compare") this.buildCompare();
       else this.buildScorecard();
     },
-    catKpis(cat) { return CFG.KPI_CATEGORIES[cat].filter((k) => this.avail.includes(k)); },
+    // The registered KPI catalog is the UI menu. Input availability affects
+    // values/graphs, not visibility. Excluded legacy options (e.g. EBITDA
+    // margin) stay excluded by config.KPI_CATEGORIES.
+    // Keep this.avail for computing valid portfolio statistics only.
+    catKpis(cat) { return CFG.KPI_CATEGORIES[cat].slice(); },
     buildTrend() {
       const st = S.kpi, H = this.H, names = uniq(this.rowsK().map((r) => r.Entity)).sort();
       if (!names.includes(st.soe)) st.soe = names[0];
@@ -969,7 +980,7 @@
       CFG.CATEGORY_ORDER.forEach((cat) => {
         const ks = this.catKpis(cat), c = card(CFG.CATEGORY_LABELS[cat], null, null, "top");
         if (!ks.length) { c.body.appendChild(el("p", { class: "kpi-desc" }, "No ratios available in this category for the current data.")); grid.appendChild(c.root); return; }
-        if (!ks.includes(st.trend[cat])) st.trend[cat] = ks[0];
+        if (!ks.includes(st.trend[cat])) st.trend[cat] = ks.find((k) => this.avail.includes(k)) || ks[0];
         const chart = el("div", { class: "chart" }), desc = el("p", { class: "kpi-desc" }), btn = el("div");
         c.body.append(fSelect("Ratio", ks.map((k) => [k, kpiTitle(k)]), st.trend[cat], (v) => { st.trend[cat] = v; this.render(); }), chart, desc, btn);
         H.cards[cat] = { chart, desc, btn };
@@ -986,7 +997,7 @@
       CFG.CATEGORY_ORDER.forEach((cat) => {
         const ks = this.catKpis(cat), c = card(CFG.CATEGORY_LABELS[cat], null, null, "top");
         if (!ks.length) { c.body.appendChild(el("p", { class: "kpi-desc" }, "No ratios available in this category for the current data.")); grid.appendChild(c.root); return; }
-        if (!ks.includes(st.cmp[cat])) st.cmp[cat] = ks[0];
+        if (!ks.includes(st.cmp[cat])) st.cmp[cat] = ks.find((k) => this.avail.includes(k)) || ks[0];
         const chart = el("div", { class: "chart" }), desc = el("p", { class: "kpi-desc" }), btn = el("div");
         c.body.append(fSelect("Ratio", ks.map((k) => [k, kpiTitle(k)]), st.cmp[cat], (v) => { st.cmp[cat] = v; this.render(); }), chart, desc, btn);
         H.cards[cat] = { chart, desc, btn };
@@ -998,7 +1009,7 @@
     },
     buildScorecard() {
       const st = S.kpi, H = this.H;
-      const cats = [["headline", "Headline"], ...CFG.CATEGORY_ORDER.filter((c) => this.catKpis(c).length).map((c) => [c, CFG.CATEGORY_LABELS[c]]), ["all", "All"]];
+      const cats = [["headline", "Headline"], ...CFG.CATEGORY_ORDER.map((c) => [c, CFG.CATEGORY_LABELS[c]]), ["all", "All"]];
       H.table = el("div"); H.legend = el("div");
       const c = card("Full SOE scorecard", "Latest year per SOE within the selected years · SOEs with the most alerts come first", seg(cats, st.scCat, (v) => { st.scCat = v; this.render(); }, "KPI category"));
       H.more = el("div");
@@ -1008,24 +1019,23 @@
     },
     renderStrip() {
       const av = this.avail, latest = latestOf(this.rowsK()), n = latest.length;
-      const many = latest.filter((r) => av.filter((k) => kpiStatus(r, k).st === "alert").length >= Math.ceil(av.length / 2)).length;
+      const many = av.length ? latest.filter((r) => av.filter((k) => kpiStatus(r, k).st === "alert").length >= Math.ceil(av.length / 2)).length : null;
       const medTile = (k, label) => {
-        if (!av.includes(k)) return null;
+        if (!av.includes(k)) return tile(label, null, null, "n/a", "", "Data unavailable · " + cutText(k));
         const vals = latest.map((r) => r[k]).filter(ok), v = median(vals), s2 = RAG[E.classify(v, k)[0]] || null;
         const na = n - vals.length;
         return tile(label, s2, s2 ? STLABEL[s2] : null, kpiFmt(k, v), "", `median of ${pl(vals.length, "SOE")}${na ? ` (${na} n/a)` : ""} · ${cutText(k)}`);
       };
       const g = av.includes("grants_to_revenue") ? latest.filter((r) => ok(r.grants_to_revenue) && r.grants_to_revenue > SPEC.grants_to_revenue.red_cut).length : null;
       put(this.H.strip,
-        countTile("SOEs with most KPIs in alert", many, n, `half or more of the ${av.length} ratios in alert · latest year`),
+        many === null ? tile("SOEs with most KPIs in alert", null, null, "n/a", "", "No calculable KPIs; alerts are not assessed") : countTile("SOEs with most KPIs in alert", many, n, `half or more of the ${av.length} ratios in alert · latest year`),
         medTile("operating_margin", "Median operating margin"),
         medTile("current_ratio", "Median current ratio"),
         medTile("debt_to_ebitda", "Median debt / EBITDA"),
-        g === null ? null : countTile("Grant-dependent SOEs", g, n, `grants above ${fmt(SPEC.grants_to_revenue.red_cut * 100, 0)}% of revenue`, "watch"));
+        g === null ? tile("Grant-dependent SOEs", null, null, "n/a", "", "Data unavailable · government grants not reported") : countTile("Grant-dependent SOEs", g, n, `grants above ${fmt(SPEC.grants_to_revenue.red_cut * 100, 0)}% of revenue`, "watch"));
     },
     render() {
       const st = S.kpi, H = this.H;
-      if (!this.avail || !this.avail.length) return;
       this.renderStrip();
       if (st.view === "trend") {
         const d = this.rowsK().filter((r) => r.Entity === st.soe).sort((a, b) => a.Year - b.Year);
@@ -1033,8 +1043,10 @@
           const k = st.trend[cat], { chart, desc, btn } = H.cards[cat];
           const sp = SPEC[k], xs = d.map((r) => r.Year), vals = d.map((r) => r[k]);
           desc.textContent = sp.description;
+          if (!vals.some(ok)) {
+            chart.replaceChildren(el("p", { class: "kpi-desc" }, missingKpiMessage(k))); btn.replaceChildren(); continue;
+          }
           if (d.length < 2) { chart.replaceChildren(el("p", { class: "kpi-desc" }, `Only one year of data for ${st.soe} — need at least two to plot a trend.`)); btn.replaceChildren(); continue; }
-          if (!vals.some(ok)) { chart.replaceChildren(el("p", { class: "kpi-desc" }, "No data for this ratio.")); btn.replaceChildren(); continue; }
           // one chart for any number of years: every year in the range on the x-axis (gaps where the ratio is n/a),
           // the latest year highlighted and labelled, dashed lines at the alert and good cutoffs
           lines(chart, xs, [{ vals, cls: "ln", dot: "hl", lastDot: "now", label: sp.label }], {
@@ -1051,7 +1063,7 @@
           btn.replaceChildren(dataButtons(() => toCSV(["Entity", "Sector", "Year", k], d.map((r) => [r.Entity, r.Sector, r.Year, r[k]])), `${st.soe}_${k}_trend.csv`));
         }
       } else if (st.view === "compare") {
-        const keys = this.avail;
+        const keys = CFG.CATEGORY_ORDER.flatMap((cat) => this.catKpis(cat));
         const base = periodRows(this.rowsK(), st, keys);
         const nE = uniq(base.map((r) => r.Entity)).length;
         put(H.period, el("span", {}, "Showing: ", el("b", {}, periodLabel(st)), nE > LIMIT ? ` · ${st.all ? "all " + nE + " SOEs" : `the ${LIMIT} weakest of ${nE} SOEs on each ratio`}, weakest first` : " · weakest first"),
@@ -1062,7 +1074,9 @@
           const rowsAll = base.filter((r) => ok(r[k])).sort((a, b) => dir * (a[k] - b[k]));
           const rows = clipRows(rowsAll, st.all);
           desc.textContent = SPEC[k].description;
-          if (!rows.length) { chart.replaceChildren(el("p", { class: "kpi-desc" }, "No data for this ratio in the current selection.")); btn.replaceChildren(); continue; }
+          if (!rows.length) {
+            chart.replaceChildren(el("p", { class: "kpi-desc" }, missingKpiMessage(k))); btn.replaceChildren(); continue;
+          }
           hbars(chart, rows.map((r) => {
             const s = RAG[E.classify(r[k], k)[0]] || "none";
             return { label: r.Entity, v: r[k], cls: "bar st-" + s, lab: `${GLYPH[s] || ""} ${kpiFmt(k, r[k])}`.trim(), s: slug(r.Sector), tipTitle: `${r.Entity} · ${r.Sector}`, tip: [[kpiFmt(k, r[k]), SPEC[k].label], [STLABEL[s] || "No data", cutText(k)]] };
@@ -1071,13 +1085,16 @@
         }
       } else {
         const cat = st.scCat;
-        const keys = cat === "headline" ? CFG.REPORT_HEADLINE_KPIS.filter((k) => this.avail.includes(k)) : cat === "all" ? this.avail : this.catKpis(cat);
+        const keys = cat === "headline" ? CFG.REPORT_HEADLINE_KPIS.slice() : cat === "all"
+          ? CFG.CATEGORY_ORDER.flatMap((c) => this.catKpis(c)) : this.catKpis(cat);
         const rowsK = this.rowsK(), latest = latestOf(rowsK);
+        // Only available ratios count toward the risk score. Other columns
+        // remain visible with neutral n/a cells, never fabricated zeros.
         const sc = scorecard(rowsK, this.avail, keys, st.all);
         H.table.replaceChildren(sc.table);
         put(H.more, moreToggle(latest.length, st.all, (v) => { st.all = v; this.render(); }, `Show the ${LIMIT} with most alerts only`));
         H.legend.replaceChildren(sc.legend);
-        H.btn.replaceChildren(dataButtons(() => toCSV(["Entity", "Sector", "Year", ...this.avail], latest.map((r) => [r.Entity, r.Sector, r.Year, ...this.avail.map((k) => r[k])])), "kpi_scorecard.csv"));
+        H.btn.replaceChildren(dataButtons(() => toCSV(["Entity", "Sector", "Year", ...keys], latest.map((r) => [r.Entity, r.Sector, r.Year, ...keys.map((k) => ok(r[k]) ? r[k] : "") ])), "kpi_scorecard.csv"));
       }
     },
   };

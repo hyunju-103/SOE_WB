@@ -1,5 +1,5 @@
   /*
-   * Upload-only fiscal-support supplements.
+   * Optional fiscal-support panels (always visible; data-dependent content).
    * Existing demo data, nine tabs, GRE rating methodology, stress calculations,
    * thresholds and original charts are not changed. The HTML is self-contained.
    */
@@ -94,7 +94,7 @@
     return S.rows.filter((r) => r.Entity === entity).slice().sort((a, b) => a.Year - b.Year);
   }
   function hasSupportFlows() {
-    return S.key === "upload" && S.rows.some((r) => SUPPORT_FLOWS.some(([key]) => ok(flowValue(r, key))));
+    return S.rows.some((r) => SUPPORT_FLOWS.some(([key]) => ok(flowValue(r, key))));
   }
   const supportMoney = (v) => (ok(v) ? money(v, true) : "not reported");
   function supportCard(title, sub) {
@@ -104,7 +104,6 @@
     return c;
   }
   function showSupportHome() {
-    if (S.key !== "upload") return;
     const m = S.uploadExtras;
     if (!hasSupportFlows() && !(m && m.sheets.length)) return;
     const c = supportCard("Uploaded government-support data", "Government-support disclosures from the uploaded workbook.");
@@ -116,12 +115,16 @@
     document.getElementById("home").append(c.root);
   }
   function showSupportKPI() {
-    if (!hasSupportFlows() || S.kpi.view !== "trend") return;
+    if (S.kpi.view !== "trend") return;
     const entity = S.kpi.soe;
     const years = supportRows(entity).filter((r) => r.Year >= S.kpi.from && r.Year <= S.kpi.to);
     const eligible = years.filter((r) => ok(r.Revenues) && r.Revenues > 0 && ok(r["Operating Profits (EBIT)"]) && ok(flowValue(r, "tariff_pso_compensation")));
-    if (!eligible.length) return;
     const c = supportCard("Reported vs tariff-compensation-adjusted EBIT margin", "Selected SOE · the effect of removing tariff/PSO compensation already included in reported revenue.");
+    if (!eligible.length) {
+      c.body.append(el("p", { class: "kpi-desc" }, "Data unavailable — requires reported revenue, EBIT and separately disclosed tariff / PSO compensation. No adjusted values are inferred from other grants."));
+      document.getElementById("kpi").append(c.root);
+      return;
+    }
     const chart = el("div", { class: "chart" });
     const reported = years.map((r) => ok(r["Operating Profits (EBIT)"]) && r.Revenues > 0 ? r["Operating Profits (EBIT)"] / r.Revenues : NaN);
     const adjusted = years.map((r) => {
@@ -167,11 +170,14 @@
     box.replaceChildren(g);
   }
   function showSupportGRE() {
-    if (!hasSupportFlows()) return;
     const entity = S.gre.sel && S.names.includes(S.gre.sel) ? S.gre.sel : S.names[0];
     const rows = supportRows(entity);
-    if (!rows.some((r) => SUPPORT_FLOWS.some(([key]) => ok(flowValue(r, key))))) return;
     const c = supportCard("Historical fiscal-support flows", `${entity} · Annual flow amounts by type; the rating-uplift assessment is unchanged.`);
+    if (!rows.some((r) => SUPPORT_FLOWS.some(([key]) => ok(flowValue(r, key))))) {
+      c.body.append(el("p", { class: "kpi-desc" }, "Data unavailable — no separately disclosed tariff / PSO compensation, operating subsidy, investment grant or equity injection for this SOE. Missing categories are not assumed to be zero."));
+      document.getElementById("gre").append(c.root);
+      return;
+    }
     const chart = el("div", { class: "chart" });
     const legend = el("div", { class: "legend-row" }, SUPPORT_FLOWS.map(([, lab, color]) => el("span", {}, el("i", { style: `display:inline-block;width:11px;height:11px;background:${color};margin-right:5px;border-radius:2px` }), lab)));
     const detail = rows.map((r) => [r.Year, ...SUPPORT_FLOWS.map(([key]) => supportMoney(flowValue(r, key))), ok(flowValue(r, "tariff_pso_compensation")) && ok(r.Revenues) && r.Revenues > 0 ? pct(flowValue(r, "tariff_pso_compensation") / r.Revenues, 1) : "—"]);
@@ -182,10 +188,13 @@
     drawSupportFlows(chart, rows);
   }
   function showSupportAssumptions() {
-    if (S.key !== "upload") return;
     const m = S.uploadExtras;
-    if (!m || !m.sheets.length) return;
-    const c = supportCard("Uploaded workbook evidence and validation", "Source references and consistency checks as supplied by the uploaded file.");
+    const c = supportCard("Workbook evidence and validation", "Source references and consistency checks, when supplied with the workbook.");
+    if (!m || !m.sheets.length) {
+      c.body.append(el("p", { class: "kpi-desc" }, "Data unavailable — no supplemental workbook evidence has been loaded. Upload a workbook with Grants_detail, Source_lines or Validation sheets to populate this panel."));
+      document.getElementById("assumptions").append(c.root);
+      return;
+    }
     const stats = new Map();
     m.validation.forEach((r) => { const k = String(r.Status || "(blank)"); stats.set(k, (stats.get(k) || 0) + 1); });
     const nerr = [...stats.entries()].filter(([k]) => !/^ok$/i.test(k)).reduce((s, [, v]) => s + v, 0);
@@ -215,9 +224,7 @@
     document.getElementById("assumptions").append(c.root);
   }
   function showSupportShock() {
-    if (S.key !== "upload") return;
     const latest = latestOf(S.rows), absent = latest.filter((r) => !["Fuel Cost Share", "FX Debt Share", "Floating Rate Debt Share"].some((k) => ok(r[k])));
-    if (!absent.length) return;
     const c = supportCard("Exposure-data availability", "Observed input coverage for the existing shock scenarios.");
     c.body.append(el("p", { class: "note", style: "margin-top:0" },
       `${absent.length} of ${latest.length} SOE(s) have no observed fuel, FX-debt or floating-rate exposure-share columns. When a relevant exposure is unavailable, the existing shock engine uses its documented sector/generic defaults. Historical tariff compensation should not be equated mechanically with incremental fuel subsidies under the stress scenario.`));
@@ -232,7 +239,7 @@
       const result = original.apply(this, args);
       const root = document.getElementById(tab);
       root.querySelectorAll(":scope > .upload-support-card").forEach((e) => e.remove());
-      if (S.key === "upload") extra();
+      extra();
       return result;
     };
   });

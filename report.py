@@ -184,6 +184,7 @@ def render_html(app: dict, standalone: bool = True) -> str:
     engine = (TEMPLATE_DIR / "engine.js").read_text(encoding="utf-8")
     app_js = (TEMPLATE_DIR / "app.js").read_text(encoding="utf-8")
     extension_js = (TEMPLATE_DIR / "support_additions.js").read_text(encoding="utf-8")
+    chart_export_js = (TEMPLATE_DIR / "chart_export.js").read_text(encoding="utf-8")
     app_js = app_js.replace("/*__SUPPORT_EXTENSION_JS__*/", extension_js)
     title = html_lib.escape(app["data"]["meta"]["title"])
     body = (
@@ -194,6 +195,7 @@ def render_html(app: dict, standalone: bool = True) -> str:
         .replace("/*__ENGINE_JS__*/", engine.replace("</script", "<\\/script"))
         .replace("/*__APP_JS__*/", app_js.replace("</script", "<\\/script"))
     )
+    body = body.replace("/*__CHART_EXPORT_JS__*/", chart_export_js.replace("</script", "<\\/script"))
     if not standalone:
         return body
     return (
