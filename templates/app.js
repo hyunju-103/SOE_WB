@@ -1453,7 +1453,7 @@
       };
       const sdSlider = (label, key, o, info) => fSlider(label, Object.assign({ value: st[key], info }, o), (v) => { const was = st[key] > 0; st[key] = v; if (was !== v > 0) drawCorr(); this.schedule(); });
       const set = el("div", { class: "fields two" },
-        fSlider("Simulations", { min: 100, max: 5000, step: 100, value: st.n, fmt: (v) => v.toLocaleString("en-US"), info: "How many random shock draws to run." }, (v) => { st.n = v; this.schedule(); }),
+        fSlider("Simulations", { min: 100, max: 10000, step: 100, value: st.n, fmt: (v) => v.toLocaleString("en-US"), info: "How many random shock draws to run." }, (v) => { st.n = v; this.schedule(); }),
         el("div"),
         sdSlider("Fuel shock std. dev.", "fsd", { min: 0.01, max: 0.3, step: 0.01, fmt: pct0 }, "Spread of the fuel shock across simulations, centred on the Fuel slider."),
         sdSlider("FX shock std. dev.", "xsd", { min: 0.01, max: 0.3, step: 0.01, fmt: pct0 }, "Spread of the FX shock across simulations, centred on the FX slider."),
