@@ -1358,7 +1358,7 @@
       ["refinancing_spread_bps", "Refinancing stress spread", -300, 1000, 25, (v) => (v > 0 ? "+" : "") + fmt(v, 0) + " bps", "0 = no shock. Extra cost of rolling over near-term debt in stressed conditions — rollover risk, distinct from floating-rate repricing."],
     ],
     arrears: [
-      ["arrears_pct_of_revenue", "Government arrears (% of revenue a year)", -1.0, 1.0, 0.01, pctSig, CFG.GLOSSARY["Government arrears"] + " Negative means the government clears existing arrears. 0 = no shock."],
+      ["arrears_pct_of_revenue", "Government arrears (% of revenue a year)", -1.3, 1.3, 0.01, pctSig, CFG.GLOSSARY["Government arrears"] + " Negative means the government clears existing arrears. 0 = no shock."],
     ],
   };
   pages.shock = {
