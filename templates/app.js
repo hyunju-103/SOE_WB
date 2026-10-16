@@ -1344,7 +1344,7 @@
       ["fuel_subsidy_share", "Government subsidy share (Case C)", 0, 1, 0.05, pct0, "Case C: the government pays this share of the fuel-cost change directly — a budget outlay reported as a direct fuel subsidy, on top of the expected fiscal cost. The SOE absorbs whatever customers and the government do not (Case A)."],
     ],
     fx: [
-      ["fx_shock_pct", "FX shock", -0.3, 0.6, 0.01, pctSig, CFG.GLOSSARY["FX shock"] + " Negative means the local currency strengthens. 0 = no shock."],
+      ["fx_shock_pct", "FX shock", -0.3, 1, 0.01, pctSig, CFG.GLOSSARY["FX shock"] + " Negative means the local currency strengthens. 0 = no shock."],
       ["fx_cost_share", "FX share of operating costs", 0, 1, 0.05, pct0, "What share of this SOE's costs are paid in a foreign currency (e.g. imported fuel or equipment)."],
       ["fx_revenue_share", "FX share of revenue", 0, 1, 0.05, pct0, "What share of revenue is earned in a foreign currency. If lower than the FX cost share, a weaker local currency hurts profit."],
       ["fx_debt_share", "FX share of total liabilities", 0, 1, 0.05, pct0, "What share of debt is denominated in a foreign currency. A weaker local currency revalues it upward."],
