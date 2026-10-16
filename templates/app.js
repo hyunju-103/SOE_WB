@@ -1338,7 +1338,7 @@
   const pctSig = (v) => (v > 0 ? "+" : "") + fmt(v * 100, 0) + "%";
   const SLIDERS = {
     fuel: [
-      ["fuel_cost_share", "Fuel cost share of OpEx", 0, 0.6, 0.01, pct0, "What share of this SOE's operating costs is spent on fuel. Higher share = more exposed to a fuel price shock."],
+      ["fuel_cost_share", "Fuel cost share of OpEx", 0, 1, 0.01, pct0, "What share of this SOE's operating costs is spent on fuel. Higher share = more exposed to a fuel price shock."],
       ["fuel_shock_pct", "Fuel price shock", -0.5, 1, 0.01, pctSig, CFG.GLOSSARY["Fuel shock"] + " Negative means fuel gets cheaper. 0 = no shock."],
       ["tariff_passthrough", "Tariff pass-through rate (Case B)", 0, 1, 0.05, pct0, CFG.GLOSSARY["Tariff pass-through"] + " Case B: customers pay this share of the fuel-cost change through tariffs."],
       ["fuel_subsidy_share", "Government subsidy share (Case C)", 0, 1, 0.05, pct0, "Case C: the government pays this share of the fuel-cost change directly — a budget outlay reported as a direct fuel subsidy, on top of the expected fiscal cost. The SOE absorbs whatever customers and the government do not (Case A)."],
